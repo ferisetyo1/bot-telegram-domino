@@ -1,4 +1,5 @@
 -- Run this in Neon SQL Editor
+-- Bot Admin: @FoodzVillain
 
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,

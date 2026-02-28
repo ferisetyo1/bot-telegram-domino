@@ -13,6 +13,8 @@ export interface Player {
     hand: DominoTile[];
     passCount: number;
     consecutiveTimeouts: number;
+    isBot?: boolean;
+    botDifficulty?: 'easy' | 'normal' | 'hard';
 }
 
 export interface GameBoard {

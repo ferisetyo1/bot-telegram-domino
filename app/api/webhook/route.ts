@@ -25,11 +25,14 @@ function setupBotCommands() {
 Selamat datang di Bot Domino Gaple! 🎲
 
 **Perintah:**
-/newgame - Buat game baru
-/join [kode] - Gabung game
+/newgame - Buat game baru (vs Bot atau Teman)
+/join [kode] - Gabung game teman
 /stats - Lihat statistik
 /leaderboard - Top players
 /help - Bantuan
+
+🤖 Bisa main vs Bot (Easy/Normal/Hard)!
+📞 Admin: @FoodzVillain
   `);
     });
 
@@ -47,15 +50,20 @@ Selamat datang di Bot Domino Gaple! 🎲
 🆔 Kode Game: \`${game.id}\`
 👥 Pemain: ${game.players.length}/4
 
-Share kode ini ke teman:
-\`/join ${game.id}\`
+**Mode:**
+🤖 Main vs Bot: Pilih difficulty di bawah
+👥 Main vs Teman: Share kode \`/join ${game.id}\`
   `, {
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
+                    [{ text: '🤖 1 Bot (Easy)', callback_data: `addbot_${game.id}_1_easy` }, { text: '🤖 1 Bot (Normal)', callback_data: `addbot_${game.id}_1_normal` }],
+                    [{ text: '🤖 1 Bot (Hard)', callback_data: `addbot_${game.id}_1_hard` }],
+                    [{ text: '🤖 2 Bots (Normal)', callback_data: `addbot_${game.id}_2_normal` }, { text: '🤖 3 Bots (Normal)', callback_data: `addbot_${game.id}_3_normal` }],
                     [{ text: '▶️ Mulai Game', callback_data: `start_${game.id}` }],
                     [{ text: '❌ Batalkan', callback_data: `cancel_${game.id}` }]
                 ]
+
             }
         });
     });
@@ -140,12 +148,22 @@ ${board}
 /leaderboard - Top 10 pemain
 /help - Bantuan ini
 
+**Mode Bermain:**
+🤖 **VS Bot:** Pilih difficulty saat buat game
+   • Easy - Bot main random
+   • Normal - Bot prioritaskan kartu tinggi
+   • Hard - Bot strategi maksimal
+
+👥 **VS Teman:** Share kode game ke teman
+
 **Cara Bermain:**
 1. Buat game dengan /newgame
-2. Share kode ke teman
+2. Pilih mode: Bot atau share kode ke teman
 3. Minimal 2 pemain untuk mulai
 4. Paskan kartu domino bergantian
 5. Habiskan kartu untuk menang!
+
+📞 Butuh bantuan? Hubungi: @FoodzVillain
   `);
     });
 
@@ -154,6 +172,39 @@ ${board}
         if (!('data' in ctx.callbackQuery)) return;
 
         const data = ctx.callbackQuery.data;
+
+        if (data?.startsWith('addbot_')) {
+            const parts = data.replace('addbot_', '').split('_');
+            const gameId = parts[0];
+            const botCount = parseInt(parts[1]);
+            const difficulty = parts[2] as 'easy' | 'normal' | 'hard';
+
+            const game = await gameState.addBotsToGame(gameId, botCount, difficulty);
+
+            if (!game) {
+                return ctx.answerCbQuery('❌ Gagal menambahkan bot');
+            }
+
+            await ctx.editMessageText(`
+🎮 **Game Berhasil Dibuat!**
+
+🆔 Kode Game: \`${game.id}\`
+👥 Pemain: ${game.players.length}/4
+${game.players.map((p, i) => `${i + 1}. ${p.firstName}${p.isBot ? ' 🤖' : ''}`).join('\n')}
+
+✅ Bot ditambahkan! Siap untuk dimulai.
+`, {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '▶️ Mulai Game', callback_data: `start_${game.id}` }],
+                        [{ text: '❌ Batalkan', callback_data: `cancel_${game.id}` }]
+                    ]
+                }
+            });
+
+            await ctx.answerCbQuery('✅ Bot ditambahkan!');
+        }
 
         if (data?.startsWith('start_')) {
             const gameId = data.replace('start_', '');
@@ -167,13 +218,15 @@ ${board}
 🎲 **Game Dimulai!**
 
 👥 Pemain:
-${game.players.map((p, i) => `${i + 1}. ${p.firstName}`).join('\n')}
+${game.players.map((p, i) => `${i + 1}. ${p.firstName}${p.isBot ? ' 🤖' : ''}`).join('\n')}
 
 🎯 Giliran: **${game.players[game.currentPlayerIndex].firstName}**
     `);
 
-            // Send cards to each player
+            // Send cards to each player (skip bots)
             for (const player of game.players) {
+                if (player.isBot) continue;
+
                 await bot.telegram.sendMessage(player.telegramId, `
 🃏 **Kartu Anda:**
 ${player.hand.map((tile, i) => `${i + 1}. ${formatTile(tile)}`).join('\n')}
@@ -217,8 +270,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET() {
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com').replace(/\/$/, '');
     return NextResponse.json({
         status: 'Bot is running',
-        webhook_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com'}/api/webhook`
+        webhook_url: `${appUrl}/api/webhook`
     });
 }

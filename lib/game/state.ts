@@ -1,5 +1,6 @@
-import { GameRoom } from '@/types/game';
+import { GameRoom, Player } from '@/types/game';
 import { distributeTiles, placeTile, getValidMoves, calculatePoints } from './domino';
+import { createBotPlayer, BotDifficulty } from './bot';
 import * as db from '@/lib/db';
 
 const gameCache = new Map<string, GameRoom>();
@@ -41,6 +42,30 @@ export async function createGameRoom(
 
     gameCache.set(gameId, gameRoom);
     return gameRoom;
+}
+
+export async function addBotsToGame(
+    gameId: string,
+    botCount: number,
+    difficulty: BotDifficulty
+): Promise<GameRoom | null> {
+    const game = await getGameRoom(gameId);
+    if (!game || game.status !== 'waiting') return null;
+
+    const availableSlots = 4 - game.players.length;
+    const botsToAdd = Math.min(botCount, availableSlots);
+
+    for (let i = 0; i < botsToAdd; i++) {
+        const playerIndex = game.players.length;
+        const botPlayer = createBotPlayer(i, difficulty);
+        botPlayer.id = playerIndex;
+
+        game.players.push(botPlayer);
+        await db.addPlayerToGame(gameId, botPlayer.telegramId, playerIndex);
+    }
+
+    gameCache.set(gameId, game);
+    return game;
 }
 
 export async function joinGameRoom(
