@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { distributeTiles, placeTile, getValidMoves } from "@/lib/game/domino";
-import { BotDifficulty, getBotMove } from "@/lib/game/bot";
+import { BotDifficulty, getBotMove, createBotPlayer } from "@/lib/game/bot";
 import { DominoTile, Player, GameBoard } from "@/types/game";
 
 // Helper to create players (human + bots)
@@ -20,17 +20,9 @@ function createPlayers(playerCount: number, botCount: number, botDifficulty: Bot
         });
     }
     for (let i = 0; i < botCount; i++) {
-        players.push({
-            id: playerCount + i,
-            telegramId: `bot${i + 1}`,
-            username: null,
-            firstName: `Bot ${i + 1}`,
-            hand: [],
-            passCount: 0,
-            consecutiveTimeouts: 0,
-            isBot: true,
-            botDifficulty,
-        });
+        const bot = createBotPlayer(i, botDifficulty);
+        bot.id = playerCount + i;
+        players.push(bot);
     }
     return players;
 }
